@@ -1,0 +1,70 @@
+"""The Rako integration."""
+from __future__ import annotations
+
+import logging
+
+from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
+from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+
+from .bridge import RakoBridge  # Assuming this handles the connection to Rako devices
+from .const import DOMAIN  # Ensure DOMAIN is defined in const.py
+from .model import RakoDomainEntryData  # Ensure this model is defined
+
+_LOGGER = logging.getLogger(__name__)
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Rako from a config entry."""
+    rako_bridge = RakoBridge(
+        host=entry.data[CONF_HOST],
+        port=entry.data[CONF_PORT],
+        name=entry.data[CONF_NAME],
+        mac=entry.data[CONF_MAC],
+        entry_id=entry.entry_id,
+        hass=hass,
+    )
+
+    device_registry = dr.async_get(hass)
+    device = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, entry.data[CONF_MAC])},
+        identifiers={(DOMAIN, entry.data[CONF_MAC])},
+        manufacturer="Rako",
+        name=entry.data[CONF_NAME],
+    )
+
+    hass.data.setdefault(DOMAIN, {})
+    rako_domain_entry_data: RakoDomainEntryData = {
+        "rako_bridge_client": rako_bridge,
+        "rako_light_map": {},
+        "rako_switch_map": {},  # Initialize switch map
+        "rako_listener_task": None,
+    }
+    hass.data[DOMAIN][rako_bridge.mac] = rako_domain_entry_data
+
+    # Forward setup for lights
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setup(entry, LIGHT_DOMAIN)
+    )
+    # Forward setup for switches
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setup(entry, SWITCH_DOMAIN)
+    )
+
+    return True
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    # Unload lights
+    await hass.config_entries.async_forward_entry_unload(entry, LIGHT_DOMAIN)
+    # Unload switches
+    await hass.config_entries.async_forward_entry_unload(entry, SWITCH_DOMAIN)
+
+    del hass.data[DOMAIN][entry.unique_id]
+    if not hass.data[DOMAIN]:
+        del hass.data[DOMAIN]
+
+    return True
