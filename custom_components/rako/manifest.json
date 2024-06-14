@@ -1,16 +1,11 @@
 {
     "domain": "rako",
     "name": "Rako",
-    "documentation": "https://github.com/xdumaster1/Rako-switch/",
+    "documentation": "https://github.com/xdumaster1/rako_HA",
     "requirements": [],
     "dependencies": [],
     "codeowners": [],
     "quality_scale": "silver",
     "version": "0.1",
-    "issue_tracker": "https://github.com/xdumaster1/Rako-switch/issues",
-    "component_url": "https://github.com/xdumaster1/Rako-switch/",
-    "config_flow": true,
-    "ssdp": [],
-    "mqtt": [],
-    "zeroconf": []
+    "config_flow": true
 }
